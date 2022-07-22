@@ -1,0 +1,34 @@
+---
+- hosts: localhost
+  vars:
+    - hosts: "{{ lookup('env', 'SETUP_HOSTS', default=Undefined) }}"
+
+  pre_tasks:
+    - name: Install sshpass
+      become: true
+      package:
+        name: "sshpass"
+        state: present
+    - name: Install collections and roles from ../requirements.yml
+      community.general.ansible_galaxy_install:
+        type: both
+        requirements_file: ../requirements.yml
+
+  tasks:
+    - name: Print all hosts when defined
+      debug:
+        msg: |
+          HOSTS:
+            {{ hosts }}
+    - name: Template hosts to ~/.ansible/hosts
+      local_action: 
+        module: template
+        src: ../templates/hosts.j2
+        dest: ~/.ansible/hosts
+        mode: '0644'
+    - name: Template ansible config to ~/.ansible.cfg
+      local_action: 
+        module: template
+        src: ../templates/ansible.cfg.j2
+        dest: ~/.ansible.cfg
+        mode: '0644'

@@ -1,0 +1,39 @@
+---
+- name: Create remote user
+  import_playbook: adduser.yml
+  vars:
+    user:
+      - ansible
+      - podman
+
+- name: Prepare remote host
+  hosts: all
+  # vars_prompt:
+  #   - name: ansible_become_password
+  #     prompt: |
+  #       Please enter a password for user 'ansible'
+  #     private: yes
+
+  pre_tasks:
+    - name: Add basic configuration
+      shell: |
+        set -ex
+        echo 'photonq' > /etc/hostname
+        localectl set-locale LANG=en_US.UTF-8
+        ln -sfn /usr/share/zoneinfo/UTC /etc/localtime
+    - name: Install epel (Extra Packages for Enterprise Linux)
+      shell: |
+        set -ex
+        dnf distro-sync -y
+        dnf install epel-release -y
+        dnf install epel-release -y
+
+  tasks:
+    - name: Install podman
+      package:
+        name: "podman"
+        state: present
+    - name: Install git
+      package:
+        name: "git"
+        state: present

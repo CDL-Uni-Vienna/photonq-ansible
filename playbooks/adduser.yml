@@ -1,0 +1,62 @@
+---
+- hosts: all
+  vars_files:
+    - ~/vault.yml
+
+  tasks:
+    - name: Add superuser with a bash shell
+      user:
+        name: "{{ item }}"
+        shell: /bin/bash
+        groups: wheel
+        append: yes
+        password: "{{ ansible_become_password | password_hash('sha512') }}"
+        generate_ssh_key: true
+        ssh_key_type: ssh-ed25519
+      with_items: "{{ user }}"
+      when:
+        - item == "ansible"
+    - name: Add user with a bash shell
+      user:
+        name: "{{ item }}"
+        shell: /bin/bash
+        groups: wheel
+        append: yes
+        password: "{{ ansible_become_password | password_hash('sha512') }}"
+        generate_ssh_key: true
+        ssh_key_type: ssh-ed25519
+      with_items: "{{ user }}"
+      when:
+        - item != "ansible"
+    # - name: Find out what the remote machine's mounts are
+    #   slurp:
+    #     src: /home/{{ item }}/.ssh/id_ssh-ed25519.pub
+    #   register: {{ item }}_ed25519_pub
+    - name: Fetch user public key
+      fetch:
+        src:  /home/{{ item }}/.ssh/id_ssh-ed25519.pub
+        dest: ~/.ssh/id_ssh-ed25519-{{ item }}-{{ inventory_hostname }}.pub
+        flat: yes
+      with_items: "{{ user }}"
+    - name: Print ssh public keys
+      debug:
+        msg: "{{ lookup('file', '~/.ssh/id_ssh-ed25519-' + item + '-' + inventory_hostname + '.pub') }}"
+      with_items: "{{ user }}"
+    - name: Set authorized keys for ansible controller
+      authorized_key:
+        user: "{{ item }}"
+        state: present
+        key: "{{ lookup('file', '~/.ssh/id_ssh-ed25519-' + item + '-' + inventory_hostname + '.pub') }}"
+      with_items: "{{ user }}"
+    - name: Fetch user private key
+      fetch:
+        src:  /home/{{ item }}/.ssh/id_ssh-ed25519
+        dest: ~/.ssh/id_ssh-ed25519-{{ item }}-{{ inventory_hostname }}
+        flat: yes
+      with_items: "{{ user }}"
+    - name: Change file permissions of keys
+      local_action: 
+        module: file
+        path: ~/.ssh/id_ssh-ed25519-{{ item }}-{{ inventory_hostname }}
+        mode: '0600'
+      with_items: "{{ user }}"
