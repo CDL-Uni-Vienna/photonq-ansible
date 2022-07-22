@@ -8,12 +8,6 @@
     - ~/vault.yml
 
   pre_tasks:
-    # - name: Git checkout ansible config
-    #   become: true
-    #   git:
-    #     repo: 'https://github.com/CDL-Uni-Vienna/ansible-photonq.git'
-    #     dest: /opt/ansible-photonq
-    #     update: no
     - name: Login podman for 'root'
       become: true
       become_user: root
@@ -37,12 +31,6 @@
     - name: Copy nginx config to /etc/nginx
       become: true
       shell: podman cp nginx_template:/etc/nginx /etc/nginx
-    # - name: Create symbolic link to etc config
-    #   become: true
-    #   file:
-    #     src: "/opt/ansible-photonq/etc/nginx"
-    #     dest: "/etc/nginx"
-    #     state: link
     - name: Run container
       containers.podman.podman_container:
         name: nginx_template
@@ -52,7 +40,7 @@
       template:
         src: ../templates/nginx-confd.conf.j2
         dest: "/etc/nginx/conf.d/{{ item }}.conf"
-        # mode: '0644'
+        mode: "0644"
       with_items:
         - "{{ domains }}"
 
@@ -63,7 +51,7 @@
         ## Podman Variables
         #
         # Required: The image name to download
-          
+
         # Deploy nginx as Reverse proxy
         - image_name: nginx
           # Optional: The tag to download. This often corresponds to
@@ -76,8 +64,8 @@
           # just piped directly to the '--publish' flag so binding IPs work
           # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
           publish:
-            - '80:80'
-            - '443:443'
+            - "80:80"
+            - "443:443"
           # Optional: String name of the network to be passed as the --network flag.
           # If the network does not exist it will be created. This can be used to allow
           # multiple services to network with each other. See Networking for caveats
@@ -86,8 +74,8 @@
           # podman CLI host-directory:container-directory and as shown below
           # mount options are allowed.
           volumes:
-            - '/etc/nginx/:/etc/nginx/:Z,ro'
-            - '/etc/ssl/nginx/:/etc/ssl/nginx/:Z,ro'
+            - "/etc/nginx/:/etc/nginx/:Z,ro"
+            - "/etc/ssl/nginx/:/etc/ssl/nginx/:Z,ro"
           # Optional: Define a hostname for podman's hostname flag. Set's
           # the containers hostname, default is none.
           #hostname: chasinglogic.io
@@ -125,7 +113,7 @@
           # systems.
           user: root
           group: root
-        
+
         # Deploy PhotonQ Node App
         - image_name: ghcr.io/cdl-uni-vienna/photonq-square
           # Optional: The tag to download. This often corresponds to
@@ -138,7 +126,7 @@
           # just piped directly to the '--publish' flag so binding IPs work
           # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
           publish:
-            - '8080:8080'
+            - "8080:8080"
           # Optional: String name of the network to be passed as the --network flag.
           # If the network does not exist it will be created. This can be used to allow
           # multiple services to network with each other. See Networking for caveats
@@ -176,7 +164,7 @@
           # systems.
           user: podman
           group: podman
-          
+
         # Deploy Postgres Database
         - image_name: postgres
           # Optional: The tag to download. This often corresponds to
@@ -189,7 +177,7 @@
           # just piped directly to the '--publish' flag so binding IPs work
           # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
           publish:
-            - '5432:5432'
+            - "5432:5432"
           # Optional: String name of the network to be passed as the --network flag.
           # If the network does not exist it will be created. This can be used to allow
           # multiple services to network with each other. See Networking for caveats
@@ -231,7 +219,7 @@
           # systems.
           user: podman
           group: podman
-          
+
           # Deploy Django
         - image_name: ghcr.io/cdl-uni-vienna/cdl_webservice
           # Optional: The tag to download. This often corresponds to
@@ -244,7 +232,7 @@
           # just piped directly to the '--publish' flag so binding IPs work
           # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
           publish:
-            - '8000:8000'
+            - "8000:8000"
           # Optional: String name of the network to be passed as the --network flag.
           # If the network does not exist it will be created. This can be used to allow
           # multiple services to network with each other. See Networking for caveats

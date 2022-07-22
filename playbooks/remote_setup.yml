@@ -8,11 +8,6 @@
 
 - name: Prepare remote host
   hosts: all
-  # vars_prompt:
-  #   - name: ansible_become_password
-  #     prompt: |
-  #       Please enter a password for user 'ansible'
-  #     private: yes
 
   pre_tasks:
     - name: Add basic configuration
@@ -33,20 +28,14 @@
       package:
         name: "podman"
         state: present
-    - name: Install git
-      package:
-        name: "git"
-        state: present
     - name: Disable ssh password login
       lineinfile:
         dest: /etc/ssh/sshd_config
         regexp: "^PasswordAuthentication"
         line: "PasswordAuthentication no"
         state: present
-      notify:
-        - restart sshd
 
-  handlers:
+  post_tasks:
     - name: Restart sshd
       systemd:
         name: sshd

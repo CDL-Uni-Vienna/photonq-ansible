@@ -21,14 +21,14 @@
           HOSTS:
             {{ hosts }}
     - name: Template hosts to ~/.ansible/hosts
-      local_action: 
+      local_action:
         module: template
         src: ../templates/hosts.j2
         dest: ~/.ansible/hosts
-        mode: '0644'
+        mode: "0644"
     - name: Template ansible config to ~/.ansible.cfg
-      local_action: 
+      local_action:
         module: template
         src: ../templates/ansible.cfg.j2
         dest: ~/.ansible.cfg
-        mode: '0644'
+        mode: "0644"

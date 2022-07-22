@@ -17,9 +17,9 @@ set -o nounset  # Exposes unset variables
 # IF YOU ARE AWARE OF A BETTER FORM OF NAMING FEEL FREE TO OPEN A ISSUE
 # OTHERWISE PLEASE USE THIS AS A GUIDELINE FOR ANY COMMIT.
 EOS_string(){
-	# allows to store EOFs in strings
-	IFS=$'\n' read -r -d '' $1 || true;
-	return $?
+    # allows to store EOFs in strings
+    IFS=$'\n' read -r -d '' $1 || true;
+    return $?
 } 2>/dev/null
 
 source /etc/os-release # source os release environment variables
@@ -76,19 +76,19 @@ EOS
 # Licensing, recommedations and warnings
 EOS_string LICENSE <<-'EOS'
 + # MIT License
-+ # 
++ #
 + # Copyright (c) 2022 Florian Herbert Kleber IT
-+ # 
++ #
 + # Permission is hereby granted, free of charge, to any person obtaining a copy
 + # of this software and associated documentation files (the "Software"), to deal
 + # in the Software without restriction, including without limitation the rights
 + # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 + # copies of the Software, and to permit persons to whom the Software is
 + # furnished to do so, subject to the following conditions:
-+ # 
++ #
 + # The above copyright notice and this permission notice shall be included in all
 + # copies or substantial portions of the Software.
-+ # 
++ #
 + # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 + # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 + # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -114,151 +114,151 @@ EOS
 # OTHERWISE PLEASE USE THIS AS A GUIDELINE FOR ANY COMMIT
 
 install() {
-	# Install GINAvbs and dependency packages passed in via an argument array
-	declare -a _argArray1=(${!1})
-	declare -a _installArray=("")
-
-	# Debian based package install - debconf will download the entire package
-	# list so we just create an array of any packages missing to
-	# cut down on the amount of download traffic.
-
-	for i in "${_argArray1[@]}"; do
-		echo -ne "+ ${INFO} Checking for ${i}..."
-		if [[ $(which "${i}" 2>/dev/null) ]]; then
-			echo -e "+ [${TICK}] Checking for ${i} (is installed)"
-		else
-			echo -e "+ ${INFO} Checking for ${i} (will be installed)"
-			_installArray+=("${i}")
-		fi 2>/dev/null
-	done
-
-	case ${__DISTRO} in
-	'alpine')
-		if [[ ${_installArray[@]} ]]; then
-			# Installing Packages
-			apk add --force ${_installArray[@]}
-			# Cleaning cached files
-			rm -rf /var/cache/apk/* /var/cache/distfiles/*
-
-			echo -e "+ [${TICK}] All dependencies are now installed"
-		fi
-	;;
-	'arch'|'manjaro')
-		if [[ ${_installArray[@]} ]]; then
-			# Installing Packages if script was started as root
-			if [[ $(pacman -S --noconfirm ${_installArray[@]}) ]]; then
-				# Cleaning cached files
-				pacman -Scc --noconfirm
-
-			# Installing if sudo is installed
-			elif [[ $(sudo pacman -S --noconfirm ${_installArray[@]}) ]]; then
-				# Cleaning cached files
-				sudo pacman -Scc --noconfirm
-
-			# Try again as root
-			else
-				echo "+ ${INFO} retry as root again"
-				return 43
-			fi
-
-			echo -e "+ [${TICK}] All dependencies are now installed"
-		fi
-
-	;;
-	'debian'|'ubuntu'|'mint'|'kali')
-		if [[ ${_installArray[@]} ]]; then
-			# Installing Packages if the script was started as root
-			if [[ $(apt-get install ${_installArray[@]} -y) ]]; then
-				# Cleaning cached files
-				apt-get clean -y
-
-			# Installing if sudo is installed
-			elif [[ $(sudo apt-get install ${_installArray[@]} -y) ]]; then
-				# Cleaning cached files
-				sudo apt-get clean -y
-
-			# Try again as root
-			else
-				echo "+ ${INFO} retry as root again"
-				return 43
-			fi
-
-			echo -e "+ [${TICK}] All dependencies are now installed"
-		fi
-		;;
-		*) return 1;;
-	esac
-
-	# curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-	# python3 get-pip.py
-	python3 -m pip install ansible
-
-	return $?
+    # Install GINAvbs and dependency packages passed in via an argument array
+    declare -a _argArray1=(${!1})
+    declare -a _installArray=("")
+    
+    # Debian based package install - debconf will download the entire package
+    # list so we just create an array of any packages missing to
+    # cut down on the amount of download traffic.
+    
+    for i in "${_argArray1[@]}"; do
+        echo -ne "+ ${INFO} Checking for ${i}..."
+        if [[ $(which "${i}" 2>/dev/null) ]]; then
+            echo -e "+ [${TICK}] Checking for ${i} (is installed)"
+        else
+            echo -e "+ ${INFO} Checking for ${i} (will be installed)"
+            _installArray+=("${i}")
+        fi 2>/dev/null
+    done
+    
+    case ${__DISTRO} in
+        'alpine')
+            if [[ ${_installArray[@]} ]]; then
+                # Installing Packages
+                apk add --force ${_installArray[@]}
+                # Cleaning cached files
+                rm -rf /var/cache/apk/* /var/cache/distfiles/*
+                
+                echo -e "+ [${TICK}] All dependencies are now installed"
+            fi
+        ;;
+        'arch'|'manjaro')
+            if [[ ${_installArray[@]} ]]; then
+                # Installing Packages if script was started as root
+                if [[ $(pacman -S --noconfirm ${_installArray[@]}) ]]; then
+                    # Cleaning cached files
+                    pacman -Scc --noconfirm
+                    
+                    # Installing if sudo is installed
+                    elif [[ $(sudo pacman -S --noconfirm ${_installArray[@]}) ]]; then
+                    # Cleaning cached files
+                    sudo pacman -Scc --noconfirm
+                    
+                    # Try again as root
+                else
+                    echo "+ ${INFO} retry as root again"
+                    return 43
+                fi
+                
+                echo -e "+ [${TICK}] All dependencies are now installed"
+            fi
+            
+        ;;
+        'debian'|'ubuntu'|'mint'|'kali')
+            if [[ ${_installArray[@]} ]]; then
+                # Installing Packages if the script was started as root
+                if [[ $(apt-get install ${_installArray[@]} -y) ]]; then
+                    # Cleaning cached files
+                    apt-get clean -y
+                    
+                    # Installing if sudo is installed
+                    elif [[ $(sudo apt-get install ${_installArray[@]} -y) ]]; then
+                    # Cleaning cached files
+                    sudo apt-get clean -y
+                    
+                    # Try again as root
+                else
+                    echo "+ ${INFO} retry as root again"
+                    return 43
+                fi
+                
+                echo -e "+ [${TICK}] All dependencies are now installed"
+            fi
+        ;;
+        *) return 1;;
+    esac
+    
+    # curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+    # python3 get-pip.py
+    python3 -m pip install ansible
+    
+    return $?
 } 2>/dev/null
 
 exit_handler(){
-	# Copy the temp log file into final log location for storage
-	#copy_to_install_log # TODO logging still doesn't working like expected
-	local error_code=$?
-
-	if [[ ${error_code} == 0 ]]; then
-		echo -e "+"
-		echo -e "${COL_LIGHT_MAGENTA}${COOL_LINE}"
-		echo -e "+"
-		echo "+ Thanks for using GINAvbs"
-		echo -e "+"
-		echo -e "${COOL_LINE}"
-
-		return ${error_code};
-	fi
-
-	echo -e "+"
-	echo -e "${COL_LIGHT_RED}${COOL_LINE}"
-	echo -e "+"
-	error_handler ${error_code}
-	echo -e "+"
-	echo -e "${COOL_LINE}"
-
-	exit ${error_code}
+    # Copy the temp log file into final log location for storage
+    #copy_to_install_log # TODO logging still doesn't working like expected
+    local error_code=$?
+    
+    if [[ ${error_code} == 0 ]]; then
+        echo -e "+"
+        echo -e "${COL_LIGHT_MAGENTA}${COOL_LINE}"
+        echo -e "+"
+        echo "+ Thanks for using GINAvbs"
+        echo -e "+"
+        echo -e "${COOL_LINE}"
+        
+        return ${error_code};
+    fi
+    
+    echo -e "+"
+    echo -e "${COL_LIGHT_RED}${COOL_LINE}"
+    echo -e "+"
+    error_handler ${error_code}
+    echo -e "+"
+    echo -e "${COOL_LINE}"
+    
+    exit ${error_code}
 } 2>/dev/null
 
 ######## ENTRYPOINT #########
 
 main(){
-	echo -e "${COL_LIGHT_MAGENTA}${LOGO}"
-	echo -e "+"
-	echo -e "${COL_LIGHT_GREEN}${LICENSE}"
-	echo -e "${COL_NC}+"
-
-	set -o xtrace
-
-	# Install packages used by this installation script
-	install __GINA_DEPS[@]
-
+    echo -e "${COL_LIGHT_MAGENTA}${LOGO}"
+    echo -e "+"
+    echo -e "${COL_LIGHT_GREEN}${LICENSE}"
+    echo -e "${COL_NC}+"
+    
+    set -o xtrace
+    
+    # Install packages used by this installation script
+    install __GINA_DEPS[@]
+    
     local _hosts="${HOSTS}"
-	local _hostsArray=()
-
+    local _hostsArray=()
+    
     if ! [[ ${_hosts} ]]; then
-	    read -p 'Hostnames: ' _hosts
-
+        read -p 'Hostnames: ' _hosts
+        
         if ! [[ ${_hosts} ]]; then
-        	# Check if username or password and/or sshkey was added
-		    return 44
+            # Check if username or password and/or sshkey was added
+            return 44
         fi
-	fi
-
-	_hosts="${_hosts// /}"
-	_hostsArray=(${_hosts//,/ })
-
+    fi
+    
+    _hosts="${_hosts// /}"
+    _hostsArray=(${_hosts//,/ })
+    
     python3 -m ansible playbook -i , -e "hosts=${_hosts}" playbooks/local_setup.yml
-
+    
     export ANSIBLE_HOST_KEY_CHECKING=False
-
-	for i in "${_hostsArray[@]}"; do
-		python3 -m ansible playbook -i ${i}, -u root -k playbooks/remote_setup.yml --ask-vault-pass
-	done
-
-	return $?
+    
+    for i in "${_hostsArray[@]}"; do
+        python3 -m ansible playbook -i ${i}, -u root -k playbooks/remote_setup.yml --ask-vault-pass
+    done
+    
+    return $?
 }
 
 # Traps everything
