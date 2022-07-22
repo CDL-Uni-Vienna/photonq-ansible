@@ -1,0 +1,47 @@
+---
+- hosts: all
+  vars_files:
+    - ~/vault.yml
+
+  pre_tasks:
+    - name: Add basic configuration
+      shell: |
+        set -ex
+        echo 'photonq' > /etc/hostname
+        localectl set-locale LANG=en_US.UTF-8
+        ln -sfn /usr/share/zoneinfo/UTC /etc/localtime
+    - name: Install epel (Extra Packages for Enterprise Linux)
+      shell: |
+        set -ex
+        dnf distro-sync -y
+        dnf install epel-release -y
+        dnf install epel-release -y
+
+  tasks:
+    - name: Install podman
+      package:
+        name: "podman"
+        state: present
+    - name: Install pip3
+      package:
+        name: "python3-pip"
+        state: present
+    - name: Upgrade pip
+      pip:
+        name: pip
+        extra_args: --upgrade
+    - name: Install cryptography python package
+      pip:
+        name: cryptography
+    - name: Disable ssh password login
+      lineinfile:
+        dest: /etc/ssh/sshd_config
+        regexp: "^PasswordAuthentication"
+        line: "PasswordAuthentication no"
+        state: present
+
+  post_tasks:
+    - name: Restart sshd
+      systemd:
+        name: sshd
+        state: restarted
