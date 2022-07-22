@@ -1,0 +1,43 @@
+---
+- hosts: all
+  gather_facts: no
+  vars_files:
+    - ~/vault.yml
+
+  tasks:
+    - name: Check if service unit nginx is running
+      become: true
+      systemd:
+        name: nginx
+        state: started
+    - name: Run systemctl status nginx
+      become: true
+      shell: systemctl status nginx
+      register: nginx_status
+    - name: Print systemctl status nginx
+      debug:
+        msg: "{{ nginx_status.stdout_lines }}"
+    - name: Check if service unit cdlwebservice is running
+      become: true
+      systemd:
+        name: cdlwebservice
+        state: started
+    - name: Run systemctl status cdlwebservice
+      become: true
+      shell: systemctl status cdlwebservice
+      register: cdlwebservice_status
+    - name: Print systemctl status cdlwebservice
+      debug:
+        msg: "{{ cdlwebservice_status.stdout_lines }}"
+    - name: Check if service unit photonqsquare is running
+      become: true
+      systemd:
+        name: photonqsquare
+        state: started
+    - name: Run systemctl status photonqsquare
+      become: true
+      shell: systemctl status photonqsquare
+      register: photonqsquare_status
+    - name: Print systemctl status photonqsquare
+      debug:
+        msg: "{{ photonqsquare_status.stdout_lines }}"

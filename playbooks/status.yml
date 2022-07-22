@@ -1,0 +1,24 @@
+---
+- hosts: all
+  gather_facts: no
+  vars_files:
+    - ~/vault.yml
+
+  tasks:
+    - name: Check if service unit nginx is running
+      become: true
+      systemd:
+        name: nginx
+        state: started
+   
+    - name: Check if service unit cdlwebservice is running
+      become: true
+      systemd:
+        name: cdlwebservice
+        state: started
+
+    - name: Check if service unit photonqsquare is running
+      become: true
+      systemd:
+        name: photonqsquare
+        state: started
