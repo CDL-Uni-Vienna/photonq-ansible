@@ -1,0 +1,43 @@
+---
+- hosts: all
+  become: true
+  vars_files:
+    - ~/vault.yml
+
+  pre_tasks:
+    - name: Create nginx ssl directory
+      file:
+        path: /etc/ssl/nginx
+        state: directory
+
+  tasks:
+    - name: Generate an OpenSSL private key
+      openssl_privatekey:
+        path: "/etc/ssl/nginx/{{ item }}_privkey.pem"
+        size: "{{ key_size }}"
+        type: "{{ key_type }}"
+        #cipher: auto
+        #passphrase: "{{ passphrase }}"
+        backup: yes
+      with_items:
+        - "{{ domains }}"
+    - name: Generate an OpenSSL Certificate Signing Request with Subject information
+      openssl_csr:
+        path: "/etc/ssl/nginx/{{ item }}.csr"
+        privatekey_path: "/etc/ssl/nginx/{{ item }}_privkey.pem"
+        country_name: "{{ country_name }}"
+        organization_name: "{{ organization_name }}"
+        email_address: "{{ email_address }}"
+        common_name: "{{ item }}"
+        #privatekey_passphrase: "{{ passphrase }}"
+      with_items:
+        - "{{ domains }}"
+    - name: Generate a Self Signed OpenSSL certificate
+      openssl_certificate:
+        path: "/etc/ssl/nginx/{{ item }}_cert.pem"
+        privatekey_path: "/etc/ssl/nginx/{{ item }}_privkey.pem"
+        csr_path: "/etc/ssl/nginx/{{ item }}.csr"
+        provider: selfsigned
+        #privatekey_passphrase: "{{ passphrase }}"
+      with_items:
+        - "{{ domains }}"
