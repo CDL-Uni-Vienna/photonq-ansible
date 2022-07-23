@@ -41,6 +41,7 @@
       become: true
       shell: podman cp nginx_template:/usr/share/nginx/html/ /var/www/html
     - name: Remove nginx template container
+      become: true
       containers.podman.podman_container:
         name: nginx_template
         state: absent
