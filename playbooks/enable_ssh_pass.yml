@@ -1,0 +1,19 @@
+---
+- hosts: all
+  become: true
+  vars_files:
+    - ~/vault.yml
+
+  tasks:
+    - name: Disable ssh password login
+      lineinfile:
+        dest: /etc/ssh/sshd_config
+        regexp: "^PasswordAuthentication"
+        line: "PasswordAuthentication yes"
+        state: present
+
+  post_tasks:
+    - name: Restart sshd
+      systemd:
+        name: sshd
+        state: restarted
