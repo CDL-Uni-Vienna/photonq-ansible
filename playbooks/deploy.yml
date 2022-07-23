@@ -31,7 +31,16 @@
     - name: Copy nginx config to /etc/nginx
       become: true
       shell: podman cp nginx_template:/etc/nginx /etc/nginx
-    - name: Run container
+    - name: Create a directory for cdlwebservicepostgres data
+      become: true
+      file:
+        path: /var/www/
+        state: directory
+        mode: '0755'
+    - name: Copy nginx www to /var/www
+      become: true
+      shell: podman cp nginx_template:/usr/share/nginx/html/ /var/www/html
+    - name: Remove nginx template container
       containers.podman.podman_container:
         name: nginx_template
         state: absent
@@ -43,6 +52,14 @@
         mode: "0644"
       with_items:
         - "{{ domains }}"
+    - name: Create a directory for cdlwebservicepostgres data
+      become: true
+      file:
+        path: /var/cdlwebservicepostgres/
+        state: directory
+        owner: podman
+        group: podman
+        mode: '0755'
 
   roles:
     # ansible-galaxy install -r requirements.yml
@@ -76,6 +93,10 @@
           volumes:
             - "/etc/nginx/:/etc/nginx/:Z,ro"
             - "/etc/ssl/nginx/:/etc/ssl/nginx/:Z,ro"
+            - "/var/www/html:/usr/share/nginx/html/:Z,ro"
+            #- "/var/log/nginx/:/var/log/nginx/:Z"
+            #- "/var/cache/nginx/:/var/cache/nginx/:Z"
+            #- "/var/nginx-pid:/var/run/:ro"
           # Optional: Define a hostname for podman's hostname flag. Set's
           # the containers hostname, default is none.
           #hostname: chasinglogic.io
@@ -182,6 +203,11 @@
           # If the network does not exist it will be created. This can be used to allow
           # multiple services to network with each other. See Networking for caveats
           network: host
+          # Optional: List of volumes to mount. Takes the same form as the
+          # podman CLI host-directory:container-directory and as shown below
+          # mount options are allowed.
+          volumes:
+            - "/var/cdlwebservicepostgres:/var/lib/postgresql/data:Z"
           # Optional: Define a hostname for podman's hostname flag. Set's
           # the containers hostname, default is none.
           #hostname: photonqfront
