@@ -40,6 +40,11 @@
     - name: Copy nginx www to /var/www
       become: true
       shell: podman cp nginx_template:/usr/share/nginx/html/ /var/www/html
+    - name: Add nginx default page
+      become: true
+      copy:
+        src: ../src/
+        dest: /var/www/html
     - name: Remove nginx template container
       become: true
       containers.podman.podman_container:

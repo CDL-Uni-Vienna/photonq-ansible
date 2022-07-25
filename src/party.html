@@ -1,0 +1,30 @@
+<html>
+    <head>
+        <title>Party :3</title>
+        <link href="img/fav.ico" rel="shortcut icon" type="image/x-icon" />
+        <style>
+            audio {
+                display: none;
+            }
+        </style>
+        <script>
+            var ncl; cols = new Array("#FF0000","#FF1100","#FF2200","#FF3300","#FF4400","#FF5500","#FF6600","#FF7700","#FF8800","#FF9900","#FFaa00","#FFbb00","#FFcc00","#FFdd00","#FFee00","#FFff00","#FFee00","#FFdd00","#FFcc00","#FFbb00","#FFaa00","#FF9900","#FF8800","#FF7700","#FF6600","#FF5500","#FF4400","#FF3300","#FF2200","#FF1100","#00FF00","#000000","#00FF00","#00FF00","#00FF00","#000000","#00FF00","#00FF00","#00FF00","#000000","#00FF00","#00FF00","#00FF00","#000000","#00FF00","#00FF00","#00FF00","#000000","#00FF00","#00FF00","#00FF00","#FF0000","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#00FF00","#FF0000","#FF4000","#FF8000","#FFC000","#FFFF00","#C0FF00","#80FF00","#40FF00","#00FF00","#00FF40","#00FF80","#00FFC0","#00FFFF","#00C0FF","#0080FF","#0040FF","#0000FF","#4000FF","#8000FF","#C000FF","#FF00FF","#FF00C0","#FF0080","#FF0040","#FF0000","#EE0000","#DD0000","#CC0000","#BB0000","#AA0000","#990000","#880000","#770000","#660000","#550000","#440000","#330000","#220000","#110000","#000000","#110000","#220000","#330000","#440000","#550000","#660000","#770000","#880000","#990000","#AA0000","#BB0000","#CC0000","#DD0000","#EE0000","#000000","#000000","#000000","#FFFFFF","#FFFFFF","#FFFFFF","#0000FF","#FFFF00","#0000FF","#FFFF00","#0000FF","#FFFF00","#0000FF","#FFFF00","#0000FF","#FFFF00","#0000FF","#FFFF00","#0000FF","#FFFF00","#0000FF","#FFFF00");
+            function changecol(offset) {
+                document.getElementById('body').style.backgroundColor = cols[offset];
+                ncl = (offset >= cols.length) ? 0 : (offset+1);
+                setTimeout("changecol("+ncl+")", 10);
+            }
+        </script>
+    </head>
+    <body id="body" onLoad="changecol(0)" style="display: flex; justify-content: center; align-items: center;">
+        <!--<object type="application/x-shockwave-flash" data="http://anonymous-austria.com/pwnyparty/snd/player_mp3.swf" width="0" height="0">
+            <param name="movie" value="http://anonymous-austria.com/pwnyparty/snd/player_mp3.swf" />
+            <param name="FlashVars" value="mp3=http%3A//anonymous-austria.com/pwnyparty/snd/pwnyparty.mp3&amp;loop=1&amp;autoplay=1" />
+        </object>-->
+        <embed type="audio/ogg" src="assets/party.ogg" autoplay="true" height="0" width="0" autostart="true" loop="true">
+        <div id="root">
+            <img style="width: 400px;" src="assets/image_96af131f-3828-4fb8-a9ac-6c7a59a2e97c-transformed.png" alt="Florian Herbert Kleber IT">
+            <a style="padding: 30px; display:block; text-align: center;" href="https://github.com/kleberbaum/kleberbaum/discussions/categories/ama-ask-me-anything">Ask me anything</a>
+        </div>
+    </body>
+</html>
