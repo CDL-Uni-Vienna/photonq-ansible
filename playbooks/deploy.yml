@@ -172,7 +172,7 @@
           restart_sec: 30
           # Optional: Define the actual name used for the SystemD
           # service. {{ Defaults to image_name + '-podman' }}
-          service_name: photonqsquare
+          service_name: photonqsquer
           # Optional: Define the targets / services this SystemD service
           # must start after. This is a YAML list not a string.
           after:

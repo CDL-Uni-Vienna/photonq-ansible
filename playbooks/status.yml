@@ -15,8 +15,8 @@
       systemd:
         name: cdlwebservice
         state: started
-    - name: Check if service unit photonqsquare is running
+    - name: Check if service unit photonqsquer is running
       become: true
       systemd:
-        name: photonqsquare
+        name: photonqsquer
         state: started

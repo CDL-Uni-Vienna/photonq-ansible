@@ -29,15 +29,15 @@
     - name: Print systemctl status cdlwebservice
       debug:
         msg: "{{ cdlwebservice_status.stdout_lines }}"
-    - name: Check if service unit photonqsquare is running
+    - name: Check if service unit photonqsquer is running
       become: true
       systemd:
-        name: photonqsquare
+        name: photonqsquer
         state: started
-    - name: Run systemctl status photonqsquare
+    - name: Run systemctl status photonqsquer
       become: true
-      shell: systemctl status photonqsquare
-      register: photonqsquare_status
-    - name: Print systemctl status photonqsquare
+      shell: systemctl status photonqsquer
+      register: photonqsquer_status
+    - name: Print systemctl status photonqsquer
       debug:
-        msg: "{{ photonqsquare_status.stdout_lines }}"
+        msg: "{{ photonqsquer_status.stdout_lines }}"
