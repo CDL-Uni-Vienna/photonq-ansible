@@ -22,7 +22,7 @@
         username: "{{ podman_login_username }}"
         password: "{{ podman_login_password }}"
         registry: "{{ podman_login_registry }}"
-    - name: Run container
+    - name: Run nginx template container
       become: true
       containers.podman.podman_container:
         name: nginx_template
@@ -115,7 +115,8 @@
           #
           # Optional: Define the restart policy for this service. Default is always
           restart: always
-          # Optional: Define the time to wait between restarts of this service in seconds. Default is 30
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
           restart_sec: 30
           # Optional: Define the actual name used for the SystemD
           # service. {{ Defaults to image_name + '-podman' }}
@@ -166,7 +167,8 @@
           #
           # Optional: Define the restart policy for this service. Default is always
           restart: always
-          # Optional: Define the time to wait between restarts of this service in seconds. Default is 30
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
           restart_sec: 30
           # Optional: Define the actual name used for the SystemD
           # service. {{ Defaults to image_name + '-podman' }}
@@ -226,7 +228,8 @@
           #
           # Optional: Define the restart policy for this service. Default is always
           restart: always
-          # Optional: Define the time to wait between restarts of this service in seconds. Default is 30
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
           restart_sec: 30
           # Optional: Define the actual name used for the SystemD
           # service. {{ Defaults to image_name + '-podman' }}
@@ -273,13 +276,17 @@
           # the containers hostname, default is none.
           #hostname: photonqdjango
           env_vars:
-            - DATABASE_URL=postgres://{{ cdlwebservice_db.user }}:{{ cdlwebservice_db.pass }}@10.88.0.1/{{ cdlwebservice_db.db }}
+            DATABASE_URL: >-
+              postgres://
+              {{ cdlwebservice_db.user }}:{{ cdlwebservice_db.pass }}@10.88.0.1
+              /{{ cdlwebservice_db.db }}
 
           ## SystemD Variables
           #
           # Optional: Define the restart policy for this service. Default is always
           restart: always
-          # Optional: Define the time to wait between restarts of this service in seconds. Default is 30
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
           restart_sec: 30
           # Optional: Define the actual name used for the SystemD
           # service. {{ Defaults to image_name + '-podman' }}
