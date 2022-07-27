@@ -336,13 +336,12 @@
           -c,
           "from django.contrib.auth import get_user_model;User=get_user_model();User.objects.create_superuser('{{ cdlwebservice.superuser.email }}','{{ cdlwebservice.superuser.name }}','{{ cdlwebservice.superuser.pass }}')"
         ]
-
-    # - name: Remove cdl_webservice config container
-    #   become: true
-    #   become_user: podman
-    #   containers.podman.podman_container:
-    #     name: cdl_webservice_config
-    #     state: absent
+    - name: Remove cdl_webservice config container
+      become: true
+      become_user: podman
+      containers.podman.podman_container:
+        name: cdl_webservice_config
+        state: absent
     - name: Logout podman for 'root'
       become: true
       become_user: root
