@@ -315,6 +315,9 @@
           group: root
 
   post_tasks:
+    - name: Wait for cdl_webservice to add database migrations
+      pause:
+        minutes: 3
     - name: Run cdl_webservice config container
       become: true
       become_user: podman
