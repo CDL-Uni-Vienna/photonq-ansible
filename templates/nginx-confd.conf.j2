@@ -35,6 +35,10 @@ server {
     proxy_pass http://10.88.0.1:8000;
   }
 
+  location ^~ /assets/ {
+    root   /usr/share/nginx/html;
+  }
+
   location / {
       proxy_set_header X-Real-IP $remote_addr;
       proxy_set_header Host $http_host;
@@ -48,6 +52,6 @@ server {
 
       expires off;
 
-      proxy_pass http://10.88.0.1:8080;
+      proxy_pass http://185.199.108.153;
   }
 }
