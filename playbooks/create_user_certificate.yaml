@@ -1,19 +1,17 @@
 ---
-- hosts: all
-  become: true
+- hosts: localhost
   vars_files:
     - ~/vault.yml
-
   pre_tasks:
-    - name: Create nginx ssl directory
+    - name: Create ssl directory
       file:
-        path: /etc/ssl/nginx
+        path: ~/ssl
         state: directory
 
   tasks:
     - name: Generate an OpenSSL private key
       openssl_privatekey:
-        path: "/etc/ssl/nginx/{{ item | replace('.', '_') }}_privkey.pem"
+        path: "~/ssl/{{ item | replace('.', '_') }}_iam_client_privkey.pem"
         size: "{{ key_size }}"
         type: "{{ key_type }}"
         #cipher: auto
@@ -23,8 +21,8 @@
         - "{{ domains }}"
     - name: Generate an OpenSSL Certificate Signing Request with Subject information
       openssl_csr:
-        path: "/etc/ssl/nginx/{{ item | replace('.', '_') }}.csr"
-        privatekey_path: "/etc/ssl/nginx/{{ item | replace('.', '_') }}_privkey.pem"
+        path: "~/ssl/iam_client_{{ item | replace('.', '_') }}.csr"
+        privatekey_path: "~/ssl/{{ item | replace('.', '_') }}_iam_client_privkey.pem"
         country_name: "{{ country_name }}"
         organization_name: "{{ organization_name }}"
         email_address: "{{ email_address }}"
@@ -32,19 +30,10 @@
         #privatekey_passphrase: "{{ passphrase }}"
       with_items:
         - "{{ domains }}"
-    - name: Pull OpenSSL Certificate Signing Request
-      fetch: 
-        src: "/etc/ssl/nginx/{{ item | replace('.', '_') }}.csr"
-        dest: "~/ssl/{{ item | replace('.', '_') }}.csr"
-        flat: true
-      with_items:
-        - "{{ domains }}"
     - name: Sign certificate with our CA
-      delegate_to: localhost
-      become: false
       openssl_certificate:
-        path: ~/ssl/{{ item | replace('.', '_') }}_cert.pem
-        csr_path: ~/ssl/{{ item | replace('.', '_') }}.csr
+        path: ~/ssl/{{ item | replace('.', '_') }}_iam_client_cert.pem
+        csr_path: ~/ssl/iam_client_{{ item | replace('.', '_') }}.csr
         provider: ownca
         ownca_path: ~/ssl/ca_cert.pem
         ownca_privatekey_path: ~/ssl/ca_privkey.pem
@@ -53,13 +42,17 @@
         ownca_not_before: "-1d"  # valid since yesterday
       with_items:
         - "{{ domains }}"
-    - name: Push certificate
-      copy:
-        src: "~/ssl/{{ item | replace('.', '_') }}_cert.pem"
-        dest: "/etc/ssl/nginx/{{ item | replace('.', '_') }}_cert.pem"
+    - name: Generate PKCS#12 file
+      openssl_pkcs12:
+        action: export
+        passphrase: "{{ p12_passphrase }}"
+        path: ~/ssl/{{ item | replace('.', '_') }}_iam_client.p12
+        friendly_name: "{{ item | replace('.', '_') }}_iam_client"
+        privatekey_path: ~/ssl/{{ item | replace('.', '_') }}_iam_client_privkey.pem
+        certificate_path: ~/ssl/{{ item | replace('.', '_') }}_iam_client_cert.pem
+        # Note that if /opt/certs/ca.pem contains multiple certificates,
+        # only the first one will be used. See the other_certificates_parse_all
+        # option for changing this behavior.
+        state: present
       with_items:
         - "{{ domains }}"
-    - name: Push CA
-      copy: 
-        src: "~/ssl/ca_cert.pem"
-        dest: "/etc/ssl/nginx/ca_cert.pem"

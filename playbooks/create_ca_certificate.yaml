@@ -1,0 +1,42 @@
+---
+- hosts: localhost
+  vars_files:
+    - ~/vault.yml
+  pre_tasks:
+    - name: Create ssl directory
+      file:
+        path: ~/ssl
+        state: directory
+
+  tasks:
+    - name: Create private key with password protection
+      openssl_privatekey:
+        path: ~/ssl/ca_privkey.pem
+        size: "{{ key_size }}"
+        type: "{{ key_type }}"
+        cipher: auto
+        passphrase: "{{ ca_passphrase }}"
+    - name: Create certificate signing request (CSR) for CA certificate
+      openssl_csr:
+        path: ~/ssl/ca.csr
+        privatekey_path: ~/ssl/ca_privkey.pem
+        privatekey_passphrase: "{{ ca_passphrase }}"
+        common_name: CA
+        country_name: "{{ country_name }}"
+        organization_name: "{{ organization_name }}"
+        email_address: "{{ email_address }}"
+        use_common_name_for_san: false  # since we do not specify SANs, don't use CN as a SAN
+        basic_constraints:
+          - 'CA:TRUE'
+        basic_constraints_critical: yes
+        key_usage:
+          - keyCertSign
+        key_usage_critical: true
+      register: ca_csr
+    - name: Create self-signed CA certificate from CSR
+      openssl_certificate:
+        path: ~/ssl/ca_cert.pem
+        csr_path: ~/ssl/ca.csr
+        privatekey_path: ~/ssl/ca_privkey.pem
+        privatekey_passphrase: "{{ ca_passphrase }}"
+        provider: selfsigned

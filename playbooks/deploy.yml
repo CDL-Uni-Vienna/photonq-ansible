@@ -8,6 +8,11 @@
     - ~/vault.yml
 
   pre_tasks:
+    - name: Expand virtual memory
+      become: true
+      shell: |
+        set -ex
+        sysctl -w vm.max_map_count=262144
     - name: Login podman for 'root'
       become: true
       become_user: root
@@ -31,6 +36,23 @@
     - name: Copy nginx config to /etc/nginx
       become: true
       shell: podman cp nginx_template:/etc/nginx /etc/nginx
+    - name: Create a directory for nginx logs
+      become: true
+      file:
+        path: /var/log/nginx
+        state: directory
+        mode: '0755'
+    - name: Create a directory for elk config
+      become: true
+      file:
+        path: /etc/elk/
+        state: directory
+        mode: '0755'
+    - name: Add nginx default page
+      become: true
+      copy:
+        src: ../templates/elk/
+        dest: /etc/elk
     - name: Create a directory for cdlwebservicepostgres data
       become: true
       file:
@@ -54,7 +76,7 @@
       become: true
       template:
         src: ../templates/nginx-confd.conf.j2
-        dest: "/etc/nginx/conf.d/{{ item }}.conf"
+        dest: "/etc/nginx/conf.d/{{ item | replace('.', '_') }}.conf"
         mode: "0644"
       with_items:
         - "{{ domains }}"
@@ -62,6 +84,30 @@
       become: true
       file:
         path: /var/cdlwebservicepostgres/
+        state: directory
+        owner: podman
+        group: podman
+        mode: '0755'
+    - name: Create a directory for cdlpostgres data
+      become: true
+      file:
+        path: /var/cdlpostgres/
+        state: directory
+        owner: podman
+        group: podman
+        mode: '0755'
+    - name: Create a directory for cdlpostgres data
+      become: true
+      file:
+        path: /var/iampostgres/
+        state: directory
+        owner: podman
+        group: podman
+        mode: '0755'
+    - name: Create a directory for authentication and authorization data
+      become: true
+      file:
+        path: /var/duckdb/
         state: directory
         owner: podman
         group: podman
@@ -75,7 +121,7 @@
         #
         # Required: The image name to download
 
-          # Deploy Django
+          # Deploy CDL Server
         - image_name: ghcr.io/cdl-uni-vienna/cdl_webservice
           # Optional: The tag to download. This often corresponds to
           # version, defaults to 'latest'
@@ -96,11 +142,11 @@
           # the containers hostname, default is none.
           #hostname: photonqdjango
           env_vars:
-            - "POSTGRES_DB={{ cdlwebservice_db.db }}"
-            - "POSTGRES_USER={{ cdlwebservice_db.user }}"
-            - "POSTGRES_PASSWORD={{ cdlwebservice_db.pass }}"
-            - "POSTGRES_HOST=10.88.0.1"
-            - "POSTGRES_PORT=5432"
+            - POSTGRES_HOST=10.88.0.1
+            - POSTGRES_PORT=5432
+            - POSTGRES_DB={{ cdlwebservice_db.db }}
+            - POSTGRES_USER={{ cdlwebservice_db.user }}
+            - POSTGRES_PASSWORD={{ cdlwebservice_db.pass }}
             #- "DATABASE_URL=postgres://{{ cdlwebservice_db.user }}:{{ cdlwebservice_db.pass }}@10.88.0.1/{{ cdlwebservice_db.db }}"
 
           ## SystemD Variables
@@ -134,13 +180,73 @@
           user: podman
           group: podman
 
+          # Deploy CDL Server next
+        - image_name: ghcr.io/cdl-uni-vienna/cdl_webservice
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: next
+          # Optional: Description that will be added to the SystemD service file
+          description: PhotonQ CDL Webservice
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          publish:
+            - "10.88.0.1:8001:8000"
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          #network: host
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: photonqdjango
+          env_vars:
+            - DJANGO_SECRET_KEY="{{ secret_key }}"
+            - POSTGRES_HOST=10.88.0.1
+            - POSTGRES_PORT=7432
+            - POSTGRES_DB={{ cdlwebservice_db.db }}
+            - POSTGRES_USER={{ cdlwebservice_db.user }}
+            - POSTGRES_PASSWORD={{ cdlwebservice_db.pass }}
+            #- DATABASE_URL=postgres://cdl_user:TAFMpDz3wWdbGzf@10.88.0.1:7432/cdl_db
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: cdlservice
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: podman
+          group: podman
+
         # Deploy Postgres Database
         - image_name: postgres
           # Optional: The tag to download. This often corresponds to
           # version, defaults to 'latest'
           image_tag: 14-alpine
           # Optional: Description that will be added to the SystemD service file
-          description: PhotonQ Frontend
+          description: CDL Database
           # Optional: List of ports to publish. Takes the same form as the
           # podman CLI that is to say: host-port:container-port. This is
           # just piped directly to the '--publish' flag so binding IPs work
@@ -174,6 +280,67 @@
           # Optional: Define the actual name used for the SystemD
           # service. {{ Defaults to image_name + '-podman' }}
           service_name: cdlwebservicepostgres
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: podman
+          group: podman
+
+        # Deploy Postgres Database
+        - image_name: postgres
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: 14-alpine
+          # Optional: Description that will be added to the SystemD service file
+          description: CDL Database
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          publish:
+            - "10.88.0.1:7432:5432"
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          #network: host
+          # Optional: List of volumes to mount. Takes the same form as the
+          # podman CLI host-directory:container-directory and as shown below
+          # mount options are allowed.
+          volumes:
+            - "/var/cdlpostgres:/var/lib/postgresql/data:Z"
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: photonqfront
+          env_vars:
+            - POSTGRES_DB={{ cdlwebservice_db.db }}
+            - POSTGRES_USER={{ cdlwebservice_db.user }}
+            - POSTGRES_PASSWORD={{ cdlwebservice_db.pass }}
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: cdlpostgres
           # Optional: Define the targets / services this SystemD service
           # must start after. This is a YAML list not a string.
           after:
@@ -247,6 +414,515 @@
           user: podman
           group: podman
 
+        # Deploy Authentication
+        - image_name: ghcr.io/snek-functions/authentication
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: latest
+          # Optional: Description that will be added to the SystemD service file
+          description: Snek Authentication
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          publish:
+            - "10.88.0.1:3020:4000"
+            
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          #network: host
+          # Optional: List of volumes to mount. Takes the same form as the
+          # podman CLI host-directory:container-directory and as shown below
+          # mount options are allowed.
+          volumes:
+            - "/var/duckdb:/var/duckdb:z"
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: photonqfront
+          env_vars:
+            - ENDPOINT_URL_AUTHENTICATION=http://10.88.0.1:3020/graphql
+            - DUCKDB_DATA_PATH=/var/duckdb
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: authentication
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: podman
+          group: podman
+
+        # Deploy Registration
+        - image_name: ghcr.io/snek-functions/registration
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: latest
+          # Optional: Description that will be added to the SystemD service file
+          description: Snek Registration
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          publish:
+            - "10.88.0.1:3030:4000"
+
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          #network: host
+          # Optional: List of volumes to mount. Takes the same form as the
+          # podman CLI host-directory:container-directory and as shown below
+          # mount options are allowed.
+          volumes:
+            - "/var/duckdb:/var/duckdb:z"
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: photonqfront
+          env_vars:
+            - ENDPOINT_URL_REGISTRATION=http://10.88.0.1:3030/graphql
+            - ENDPOINT_URL_IAM=http://10.88.0.1:3050/graphql
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: registration
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: podman
+          group: podman
+
+        # Deploy Email
+        - image_name: ghcr.io/snek-functions/email
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: latest
+          # Optional: Description that will be added to the SystemD service file
+          description: Snek Email
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          publish:
+            - "10.88.0.1:3040:4000"
+            
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          #network: host
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: photonqfront
+          env_vars:
+            - ENDPOINT_URL_EMAIL=http://10.88.0.1:3040/graphql
+            - SMTP_HOST={{ smtp.host }}
+            - SMTP_PORT={{ smtp.port }}
+            - SMTP_USER={{ smtp.user }}
+            - SMTP_PASSWORD={{ smtp.pass }}
+            - SMTP_SENDER={{ smtp.sender }}
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: email
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: podman
+          group: podman
+
+        # Deploy IAM
+        - image_name: ghcr.io/snek-functions/iam
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: latest
+          # Optional: Description that will be added to the SystemD service file
+          description: Snek IAM
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          publish:
+            - "10.88.0.1:3050:4000"
+            
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          #network: host
+          # Optional: List of volumes to mount. Takes the same form as the
+          # podman CLI host-directory:container-directory and as shown below
+          # mount options are allowed.
+          volumes:
+            - "/var/duckdb:/var/duckdb:z"
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: photonqfront
+          env_vars:
+            - DJANGO_SECRET_KEY={{ django_secret_key }}
+            - POSTGRES_HOST=10.88.0.1
+            - POSTGRES_DB={{ iam_db.db }}
+            - POSTGRES_USER={{ iam_db.user }}
+            - POSTGRES_PASSWORD={{ iam_db.pass }}
+            - POSTGRES_PORT=6432
+            - ENDPOINT_URL_IAM=http://10.88.0.1:3050/graphql
+            - HOME=/var/task
+            - DUCKDB_DATA_PATH=/var/duckdb
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: iam
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: root
+          group: root
+
+        # Deploy Postgres Database
+        - image_name: postgres
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: 14-alpine
+          # Optional: Description that will be added to the SystemD service file
+          description: IAM Database
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          publish:
+            - "10.88.0.1:6432:5432"
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          #network: host
+          # Optional: List of volumes to mount. Takes the same form as the
+          # podman CLI host-directory:container-directory and as shown below
+          # mount options are allowed.
+          volumes:
+            - "/var/iampostgres:/var/lib/postgresql/data:Z"
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: photonqfront
+          env_vars:
+            - POSTGRES_DB={{ iam_db.db }}
+            - POSTGRES_USER={{ iam_db.user }}
+            - POSTGRES_PASSWORD={{ iam_db.pass }}
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: iampostgres
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: root
+          group: root
+
+        # Deploy Origin
+        - image_name: ghcr.io/snek-functions/origin
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: latest
+          # Optional: Description that will be added to the SystemD service file
+          description: Snek Origin
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          publish:
+            - "10.88.0.1:3010:4000"
+
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          # network: host
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: photonqfront
+          env_vars:
+            - SECRET_KEY="{{ secret_key }}"
+            - ENDPOINT_URL_ORIGIN=https://photonq.at/graphql
+            - ENDPOINT_URL_AUTHENTICATION=http://10.88.0.1:3020/graphql
+            - ENDPOINT_URL_REGISTRATION=http://10.88.0.1:3030/graphql
+            - ENDPOINT_URL_EMAIL=http://10.88.0.1:3040/graphql
+            - ENDPOINT_URL_IAM=http://10.88.0.1:3050/graphql
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: origin
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: podman
+          group: podman
+
+        # Deploy ELK Stack
+        - image_name: sebp/elk
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: oss-8.3.3
+          # Optional: Description that will be added to the SystemD service file
+          description: ELK Stack
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          publish:
+            - "10.88.0.1:5044:5044"
+            - "10.88.0.1:5601:5601"
+            - "10.88.0.1:9200:9200"
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          #network: host
+          # Optional: List of volumes to mount. Takes the same form as the
+          # podman CLI host-directory:container-directory and as shown below
+          # mount options are allowed.
+          volumes:
+            - "/etc/elk/elasticsearch.yml:/opt/elasticsearch/elasticsearch.yml:Z,ro"
+            - "/etc/elk/kibana.yml:/opt/kibana/config/kibana.yml:Z,ro"
+            - "/etc/elk/logstash-beats.crt:/etc/pki/tls/certs/logstash-beats.crt:z"
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: chasinglogic.io
+          # Optional: A list of environment variables to add to the
+          # container.  Default is none.
+          # env_vars:
+          #   - SERVER_NAME=kibana.photonq.at
+          #   - ELASTICSEARCH_HOSTS=http://10.88.0.1:9200
+          #   - ELASTICSEARCH_USERNAME={{ elasticsearch.user }}
+          #   - ELASTICSEARCH_PASSWORD={{ elasticsearch.pass }}
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: elk
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: root
+          group: root
+
+        # Deploy Filebeat
+        - image_name: docker.elastic.co/beats/filebeat-oss
+          # Optional: The tag to download. This often corresponds to
+          # version, defaults to 'latest'
+          image_tag: 8.3.3
+          # Optional: Description that will be added to the SystemD service file
+          description: Filebeat
+          # Optional: List of ports to publish. Takes the same form as the
+          # podman CLI that is to say: host-port:container-port. This is
+          # just piped directly to the '--publish' flag so binding IPs work
+          # as well (ex. '127.0.0.1:8080:80'). Defaults to none.
+          # publish:
+          #   - "10.88.0.1:5044:5044"
+          #   - "10.88.0.1:5601:5601"
+          #   - "10.88.0.1:9200:9200"
+          # Optional: String name of the network to be passed as the --network flag.
+          # If the network does not exist it will be created. This can be used to allow
+          # multiple services to network with each other. See Networking for caveats
+          #network: host
+          # Optional: List of volumes to mount. Takes the same form as the
+          # podman CLI host-directory:container-directory and as shown below
+          # mount options are allowed.
+          volumes:
+            - "/etc/elk/filebeat.yml:/usr/share/filebeat/filebeat.yml:Z,ro"
+            - "/etc/elk/logstash-beats.crt:/usr/share/filebeat/logstash-beats.crt:z"
+            - "/var/log/nginx/:/var/log/nginx/:z,ro"
+            #- "/var/log/syslog:/var/log/syslog:Z,ro"
+            #- "/var/log/auth.log:/var/log/auth.log:Z,ro"
+          # Optional: Define a hostname for podman's hostname flag. Set's
+          # the containers hostname, default is none.
+          #hostname: chasinglogic.io
+          # Optional: A list of environment variables to add to the
+          # container.  Default is none.
+          # env_vars:
+          #   - SERVER_NAME=kibana.photonq.at
+          #   - ELASTICSEARCH_HOSTS=http://10.88.0.1:9200
+          #   - ELASTICSEARCH_USERNAME={{ elasticsearch.user }}
+          #   - ELASTICSEARCH_PASSWORD={{ elasticsearch.pass }}
+
+          ## SystemD Variables
+          #
+          # Optional: Define the restart policy for this service. Default is always
+          restart: always
+          # Optional: Define the time to wait between restarts of this service in
+          # seconds. Default is 30
+          restart_sec: 30
+          # Optional: Define the actual name used for the SystemD
+          # service. {{ Defaults to image_name + '-podman' }}
+          service_name: filebeat
+          # Optional: Define the targets / services this SystemD service
+          # must start after. This is a YAML list not a string.
+          after:
+            - network.target
+          # Optional: Define the timeout for starting this SystemD
+          # service. For valid values see 'man systemd.service'. Defaults to
+          # 5 minutes.
+          timeout_start_sec: 5m
+          # Optional: Define an install section for the SystemD
+          # service. Currently only wanted_by is supported. See 'man
+          # systemd.unit' for a description of this section. Default is none
+          # and most users should not need this.
+          install:
+            wanted_by:
+              - multi-user.target
+          # Optional: define the user and group for the service
+          # file. Default is omission which is equivalent to root on most
+          # systems.
+          user: root
+          group: root
+
         # Deploy nginx as Reverse proxy
         - image_name: nginx
           # Optional: The tag to download. This often corresponds to
@@ -272,7 +948,7 @@
             - "/etc/nginx/:/etc/nginx/:Z,ro"
             - "/etc/ssl/nginx/:/etc/ssl/nginx/:Z,ro"
             - "/var/www/html:/usr/share/nginx/html/:Z,ro"
-            #- "/var/log/nginx/:/var/log/nginx/:Z"
+            - "/var/log/nginx/:/var/log/nginx/:z"
             #- "/var/cache/nginx/:/var/cache/nginx/:Z"
             #- "/var/nginx-pid:/var/run/:ro"
           # Optional: Define a hostname for podman's hostname flag. Set's
@@ -315,6 +991,19 @@
           group: root
 
   post_tasks:
+    # - name: Create Kibana password
+    #   ansible.builtin.uri:
+    #     url: https://www.mms.microsoft.com/Embedded/Api/ConfigDataSources/LogManagementData/Save
+    #     method: POST
+    #     body_format: json
+    #     status_code: [200, 202]
+    #     return_content: true
+    #     headers:
+    #       Content-Type: application/json
+    #       x-ms-client-workspace-path: /subscriptions/{{ sub_id }}/resourcegroups/{{ res_group }}/providers/microsoft.operationalinsights/workspaces/{{ w_spaces }}
+    #       x-ms-client-platform: ibiza
+    #       x-ms-client-auth-token: "{{ token_az }}"
+    #     body:
     - name: Run cdl_webservice config container
       become: true
       become_user: podman
@@ -323,12 +1012,12 @@
         image: ghcr.io/cdl-uni-vienna/cdl_webservice
         state: started
         env:
-          #DATABASE_URL: postgres://{{ cdlwebservice_db.user }}:{{ cdlwebservice_db.pass }}@10.88.0.1/{{ cdlwebservice_db.db }}
           POSTGRES_DB: "{{ cdlwebservice_db.db }}"
           POSTGRES_USER: "{{ cdlwebservice_db.user }}"
           POSTGRES_PASSWORD: "{{ cdlwebservice_db.pass }}"
           POSTGRES_HOST: "10.88.0.1"
           POSTGRES_PORT: "5432"
+          #DATABASE_URL: postgres://{{ cdlwebservice_db.user }}:{{ cdlwebservice_db.pass }}@10.88.0.1/{{ cdlwebservice_db.db }}
         command: [
           /venv/bin/python,
           ./manage.py,

@@ -1,0 +1,48 @@
+---
+- name: Create self-signed certificate for nginx
+  import_playbook: openssl_certificates.yml
+
+- name: Deploy container with podman
+  hosts: all
+  vars_files:
+    - ~/vault.yml
+
+  tasks:
+    - name: Login podman for 'root'
+      become: true
+      become_user: root
+      containers.podman.podman_login:
+        username: "{{ podman_login_username }}"
+        password: "{{ podman_login_password }}"
+        registry: "{{ podman_login_registry }}"
+    - name: Login podman for 'podman'
+      become: true
+      become_user: podman
+      containers.podman.podman_login:
+        username: "{{ podman_login_username }}"
+        password: "{{ podman_login_password }}"
+        registry: "{{ podman_login_registry }}"
+    # - name: Remove cdl_webservice config container
+    #   become: true
+    #   become_user: podman
+    #   containers.podman.podman_container:
+    #     name: cdl_webservice_config
+    #     state: absent
+    - name: Remove cdl_webservice config container
+      become: true
+      become_user: podman
+      containers.podman.podman_container:
+        name: cdl_webservice_config
+        state: absent
+
+  post_tasks:
+    - name: Logout podman for 'root'
+      become: true
+      become_user: root
+      containers.podman.podman_logout:
+        all: yes
+    - name: Logout podman for 'podman'
+      become: true
+      become_user: podman
+      containers.podman.podman_logout:
+        all: yes

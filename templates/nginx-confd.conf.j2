@@ -12,15 +12,65 @@ server {
   listen 443 ssl;
   server_name {{ item }};
 
-  #access_log /var/log/nginx/access.log combined_ssl;
+  access_log /var/log/nginx/{{ item | replace('.', '_') }}_access.log;
+  #error_log  /var/log/nginx/{{ item | replace('.', '_') }}_error_log;
 
-  ssl_certificate /etc/ssl/nginx/{{ item }}_cert.pem;
-  ssl_certificate_key /etc/ssl/nginx/{{ item }}_privkey.pem;
+  ssl_certificate /etc/ssl/nginx/{{ item | replace('.', '_') }}_cert.pem;
+  ssl_certificate_key /etc/ssl/nginx/{{ item | replace('.', '_') }}_privkey.pem;
+
+  # client certificate
+  ssl_client_certificate /etc/ssl/nginx/ca_cert.pem;
+
+  # make verification optional, so we can display a 403 message to those
+  # who fail authentication
+  ssl_verify_client optional;
 
   #include /data/letsencrypt/options-ssl-nginx.conf;
   #ssl_dhparam /data/letsencrypt/ssl-dhparams.pem;
 
-  location ^~ /api/ {
+  error_page 403 /index.html;
+  error_page 500 /index.html;
+  error_page 404 /404.html;
+
+  location ^~ /index.html {
+    allow all;
+    alias  /usr/share/nginx/html/index.html;
+
+  }
+
+  location ^~ /party.html {
+    allow all;
+    alias  /usr/share/nginx/html/party.html;
+  }
+
+  location ^~ /404.html {
+    allow all;
+    alias  /usr/share/nginx/html/404.html;
+  }
+
+  set $root_address 185.199.108.153;
+  set $root_port 80;
+
+  set $sf_port 3010;
+  set $x_cert_authorization $http_authorization;
+
+  {% if 'iam.photonq.at' in item %}
+  set $sf_port 3050;
+  set $x_cert_authorization "bearer ";
+
+  # if the client-side certificate failed to authenticate, show a 403
+  # message to the client
+  if ($ssl_client_verify != SUCCESS) {
+    return 302 https://photonq.at/;
+  }
+  {% endif %}
+
+  location ^~ /kibana/ {
+    if ($ssl_client_verify != SUCCESS) {
+      return 302 https://photonq.at/;
+    }
+
+    proxy_intercept_errors on;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -32,10 +82,31 @@ server {
     proxy_set_header X-Forwarded-Ssl on;
 
     expires off;
-    proxy_pass http://10.88.0.1:8000;
+    
+    proxy_pass http://10.88.0.1:5601/kibana/;
+  }
+
+  location ^~ /api/ {
+    proxy_intercept_errors on;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+    proxy_set_header X-Real-Port $server_port;
+    proxy_set_header X-Real-Scheme $scheme;
+    proxy_set_header X-NginX-Proxy true;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Ssl on;
+
+    proxy_set_header Authorization $x_cert_authorization;
+
+    expires off;
+    
+    proxy_pass http://10.88.0.1:8001/api2/;
   }
 
   location ^~ /api2/ {
+    proxy_intercept_errors on;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -46,11 +117,15 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Ssl on;
 
+    proxy_set_header Authorization $x_cert_authorization;
+
     expires off;
+    
     proxy_pass http://10.88.0.1:8001;
   }
 
   location ^~ /graphql {
+    proxy_intercept_errors on;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -60,12 +135,20 @@ server {
     proxy_set_header X-NginX-Proxy true;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Ssl on;
+    #proxy_hide_header Referrer-Policy;
+    #proxy_hide_header Access-Control-Allow-Origin;
+
+    #add_header 'Referrer-Policy' 'origin';
+    #add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+    #add_header Access-Control-Allow-Origin "https://photonq.at/ https://iam.photonq.at/";
 
     expires off;
-    proxy_pass http://10.88.0.1:3010;
+
+    proxy_pass http://10.88.0.1:$sf_port;
   }
 
   location ^~ /graphiql {
+    proxy_intercept_errors on;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -75,12 +158,20 @@ server {
     proxy_set_header X-NginX-Proxy true;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Ssl on;
+    #proxy_hide_header Referrer-Policy;
+    #proxy_hide_header Access-Control-Allow-Origin;
+
+    #add_header 'Referrer-Policy' 'origin';
+    #add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+    #add_header Access-Control-Allow-Origin "https://photonq.at/ https://iam.photonq.at/";
 
     expires off;
-    proxy_pass http://10.88.0.1:3010;
+
+    proxy_pass http://10.88.0.1:$sf_port;
   }
 
-  location ^~ /submit/ {
+  location ^~ /submit {
+    proxy_intercept_errors on;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -90,9 +181,16 @@ server {
     proxy_set_header X-NginX-Proxy true;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Ssl on;
+    #proxy_hide_header Referrer-Policy;
+    #proxy_hide_header Access-Control-Allow-Origin;
+
+    #add_header 'Referrer-Policy' 'origin';
+    #add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+    #add_header Access-Control-Allow-Origin "https://photonq.at/ https://iam.photonq.at/";
 
     expires off;
-    proxy_pass http://10.88.0.1:3010;
+
+    proxy_pass http://10.88.0.1:$sf_port;
   }
 
   location ^~ /assets/ {
@@ -100,6 +198,7 @@ server {
   }
 
   location / {
+      proxy_intercept_errors on;
       proxy_set_header X-Real-IP $remote_addr;
       proxy_set_header Host $http_host;
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -109,9 +208,15 @@ server {
       proxy_set_header X-NginX-Proxy true;
       proxy_set_header X-Forwarded-Proto $scheme;
       proxy_set_header X-Forwarded-Ssl on;
+      #proxy_hide_header Referrer-Policy;
+      #proxy_hide_header Access-Control-Allow-Origin;
+
+      #add_header 'Referrer-Policy' 'origin';
+      #add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+      #add_header Access-Control-Allow-Origin "https://photonq.at/ https://iam.photonq.at/";
 
       expires off;
 
-      proxy_pass http://185.199.108.153;
+      proxy_pass http://$root_address:$root_port;
   }
 }
